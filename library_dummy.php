@@ -6,7 +6,7 @@ function h($value) {
 
 // DBへの接続
 function dbconnect() {
-    $db = new mysqli('localhost', 'root', 'root', 'sortable');
+    $db = new mysqli('localhost', 'root', 'root', 'memolist');
     if (!$db) {
         die($db->error);
     }
