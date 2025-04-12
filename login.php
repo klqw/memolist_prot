@@ -4,6 +4,13 @@ require('library.php');
 $error = [];
 $username = '';
 $password = '';
+
+// ログイン中の場合はindex.phpへリダイレクト
+if (isset($_SESSION['id']) && isset($_SESSION['name'])) {
+    header('Location: index.php');
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_SPECIAL_CHARS);
     $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_SPECIAL_CHARS);
@@ -26,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt->bind_result($id, $name, $hash);
         $result = $stmt->fetch();
+        $stmt->close();
         // var_dump($result);
 
         // ユーザー名が登録されているときにパスワードの一致確認を行う
@@ -36,6 +44,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 session_regenerate_id();
                 $_SESSION['id'] = $id;
                 $_SESSION['name'] = $name;
+                // 初回ログインのときにタブを作成する
+                $stmt = $db->prepare('SELECT COUNT(*) AS cnt FROM tabs WHERE userid = ?');
+                if (!$stmt) {
+                    die($db->error);
+                }
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $counts = $stmt->get_result();
+                $count = $counts->fetch_assoc();
+                $stmt->close();
+                if ($count['cnt'] < 1) {
+                    $stmt = $db->prepare('INSERT INTO tabs (position, tab, isactive, userid) VALUES (?, ?, ?, ?)');
+                    if (!$stmt) {
+                        die($db->error);
+                    }
+                    $position = 0;
+                    $tab = 'Untitled';
+                    $isactive = 'active';
+                    $stmt->bind_param('issi', $position, $tab, $isactive, $id);
+                    $success = $stmt->execute();
+                    if (!$success) {
+                        die($db->error);
+                    }
+                }
                 header('Location: index.php');
                 exit();
             } else {

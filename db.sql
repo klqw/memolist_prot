@@ -16,13 +16,26 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`)
 );
 
+-- tabsテーブルの作成
+CREATE TABLE `tabs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `position` int(11) NOT NULL,
+  `tab` varchar(200) NOT NULL,
+  `isactive` varchar(50) NOT NULL,
+  `userid` int(11) NOT NULL,
+  `created` datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  PRIMARY KEY (`id`)
+);
+
 -- memosテーブルの作成
 CREATE TABLE `memos` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `position` int(11) NOT NULL,
-  `memo` varchar(100) NOT NULL,
+  `memo` varchar(1000) NOT NULL,
   `bgcolor` varchar(50) NOT NULL,
   `userid` int(11) NOT NULL,
   `created` datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  PRIMARY KEY (`id`)
+  `tabid` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (tabid) REFERENCES tabs(id) ON DELETE CASCADE
 );

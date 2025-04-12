@@ -2,6 +2,12 @@
 session_start();
 require('library.php');
 
+// URL直打ちの場合はDB処理をせずリダイレクト
+if (!isset($_SERVER['HTTP_REFERER'])) {
+    header('Location: index.php');
+    exit();
+}
+
 // POSTデータを受け取る
 $id = filter_input(INPUT_POST, 'id', FILTER_SANITIZE_NUMBER_INT);
 $bgcolor = filter_input(INPUT_POST, 'bgcolor', FILTER_SANITIZE_SPECIAL_CHARS);

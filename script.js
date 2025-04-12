@@ -1,22 +1,25 @@
 $(function() {
     // ページが読み込まれたときの処理
     $(document).ready(function() {
-        // 並び順の取得
-        let sortedIds = getSortOrder();
-        // 並び順の保存
-        setSortOrder(sortedIds);
+        // メモ並び順の取得
+        let sortedMemoIds = getSortOrder();
+        // メモ並び順の保存
+        setSortOrder(sortedMemoIds);
+        // タブ並び順の取得
+        let sortedTabIds = getTabSortOrder();
+        // タブ並び順の保存
+        setTabSortOrder(sortedTabIds);
     });
 
     // メモの並び順が変更されたときの処理
     $('#sortableArea').sortable({
         // 並べ替えの即時反映
         update: function(event, ui) {
-            // 並び順の取得
-            let sortedIds = getSortOrder();
-            // console.log(sortedIds);
-
-            // 並び順の保存
-            setSortOrder(sortedIds);
+            // メモ並び順の取得
+            let sortedMemoIds = getSortOrder();
+            // console.log(sortedMemoIds);
+            // メモ並び順の保存
+            setSortOrder(sortedMemoIds);
         }
     });
 
@@ -101,9 +104,9 @@ $(function() {
                     // リストから該当のメモを削除
                     $('li[id="' + memoId + '"]').remove();
                     // 並び順の再取得
-                    let sortedIds = getSortOrder();
+                    let sortedMemoIds = getSortOrder();
                     // 並び順の再保存
-                    setSortOrder(sortedIds);
+                    setSortOrder(sortedMemoIds);
                 } else { // 削除失敗時の処理
                     alert('メモの削除に失敗しました');
                 }
@@ -116,20 +119,179 @@ $(function() {
 
     $('#sortableArea').disableSelection();
 
-    // 現在の並び順を取得
+
+
+    // タブ切り替え
+    $('.tabs').on('click', '.tab-name', function() {
+        if ($(this).parent().hasClass('inactive')) {
+            let tabId = $(this).parent().data('tab-id'); // 切り替えるタブのIDを取得
+            $.ajax({
+                url: 'change_tab.php',
+                type: 'POST',
+                data: { id: tabId }, // 切り替えるタブのIDを送信
+                success: function(response) {
+                    if (response === 'success') { // 切り替え成功時の処理
+                        window.location.href = "index.php";
+                    } else {
+                        alert('タブの切り替えに失敗しました');
+                    }
+                },
+                error: function() {
+                    alert('サーバに接続できませんでした');
+                }
+            });
+        }
+    });
+
+    // タブ名編集
+    $('.tabs').on('dblclick', '.tab-name', function() {
+        let tabId = $(this).parent().data('tab-id'); // 保存するタブ名のIDを取得
+        // console.log(tabId);
+        let $span = $(this);
+        let currentName = $span.text();
+        let $input = $('<input type="text" maxlength="20">').val(currentName);
+
+        $span.replaceWith($input);
+        $input.focus();
+        $input.select();
+
+        // Enterかフォーカス外れで保存処理
+        $input.on('blur keydown', function(e) {
+            if (e.type === 'blur' || e.key === 'Enter') {
+                let newName = $input.val(); // 保存する新しいタブ名を取得
+
+                $.ajax({
+                    url: 'update_tab.php',
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        id: tabId,
+                        tab: newName
+                    },
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            let $newSpan = $('<span class="tab-name"></span>').text(response.message);
+                            $input.replaceWith($newSpan);
+                        } else if (response.status === 'blank') {
+                            let $currentSpan = $('<span class="tab-name"></span>').text(currentName);
+                            $input.replaceWith($currentSpan);
+                        }
+                    },
+                    error: function() {
+                        alert('サーバに接続できませんでした');
+                    }
+                });
+            }
+        });
+
+    });
+
+    // タブ削除
+    $('.tabs').on('click', '.delete-tab', function() {
+        let tabId = $(this).parent().data('tab-id'); // 削除するタブのIDを取得
+        // console.log(tabId);
+
+        // 指定したタブに紐づくメモの個数を取得する
+        $.ajax({
+            url: 'count_memo.php',
+            method: 'POST',
+            dataType: 'json',
+            data: { id: tabId },
+            success: function(response) {
+                if (response.status === 'success') {
+                    let count = response.count;
+                    if (count > 0) {
+                        if (confirm('このタブを削除しますか？(このタブに登録したメモも一緒に削除されます)')) {
+                            deleteTab(tabId);
+                        }
+                    } else {
+                        deleteTab(tabId);
+                    }
+                } else {
+                    alert('タブに紐づくメモの個数を取得できませんでした');
+                }
+            },
+            error: function() {
+                alert('サーバに接続できませんでした');
+            }
+        });
+
+    });
+
+    // タブ並び順が変更されたときの処理
+    $('#tabArea').sortable({
+        axis: 'x',
+        cancel: '.delete-tab, .add-tab',
+        // 並べ替えの即時反映
+        update: function(event, ui) {
+            // タブ並び順の取得
+            let sortedTabIds = getTabSortOrder();
+            // console.log(sortedTabIds);
+            // タブ並び順の保存
+            setTabSortOrder(sortedTabIds);
+        }
+    });
+
+    $('#tabArea').disableSelection();
+
+
+    // 現在のメモ並び順を取得
     function getSortOrder() {
         let sorted = $('#sortableArea').sortable('toArray', { attribute: 'id'});
         return sorted;
     }
 
-    // 現在の並び順を保存する
-    function setSortOrder(sortedIds) {
+    // 現在のメモ並び順を保存する
+    function setSortOrder(sortedMemoIds) {
         $.ajax({
-            url: 'save_order.php',
+            url: 'save_memo_order.php',
             type: 'POST',
-            data: { order: sortedIds },
+            data: { order: sortedMemoIds },
             success: function(response) {
                 // console.log(response);
+            },
+            error: function() {
+                alert('サーバに接続できませんでした');
+            }
+        });
+    }
+
+    // 現在のタブ並び順を取得
+    function getTabSortOrder() {
+        let sorted = $('#tabArea').sortable('toArray', { attribute: 'data-tab-id'});
+        return sorted;
+    }
+
+    // 現在のタブ並び順を保存する
+    function setTabSortOrder(sortedTabIds) {
+        $.ajax({
+            url: 'save_tab_order.php',
+            type: 'POST',
+            data: { order: sortedTabIds },
+            success: function(response) {
+                // console.log(response);
+            },
+            error: function() {
+                alert('サーバに接続できませんでした');
+            }
+        });
+    }
+
+    // 指定したタブを削除する
+    function deleteTab(tabId) {
+        $.ajax({
+            url: 'delete_tab.php',
+            method: 'POST',
+            dataType: 'json',
+            data: { id: tabId }, // 削除するタブのIDを送信
+            success: function(response) {
+                if (response.status === 'success') { // 削除成功時の処理
+                    window.location.reload();
+                } else if (response.status === 'fail') {  // タブ1個以下のときのエラーメッセージ
+                    alert(response.message);
+                } else { // 削除失敗時の処理(その他)
+                    alert('タブの削除に失敗しました');
+                }
             },
             error: function() {
                 alert('サーバに接続できませんでした');
